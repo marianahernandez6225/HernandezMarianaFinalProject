@@ -23,7 +23,7 @@ using namespace std;
 // Make a string uppercase
 string upperCaseString(const string& keyword) {
 	string upperWord = keyword;
-	for (size_t i = 0; i < upperWord.size(); i++) {
+	for (int i = 0; i < static_cast<int>(upperWord.size()); i++) {
 		unsigned char uc = static_cast<unsigned char>(upperWord[i]);
 		upperWord[i] = static_cast<char>(toupper(uc));
 	}
@@ -33,12 +33,12 @@ string upperCaseString(const string& keyword) {
 // Remove duplicates, keep order
 string duplicateOrder(const string& no_double_word) {
 	string no_doubles;
-	for (int i = 0; i < no_double_word.size(); i++) {	//loop to see each character from keyword
+	for (int i = 0; i < static_cast<int>(no_double_word.size()); i++) { // loop to see each character from keyword
 		char c = no_double_word[i];
 		bool found = false;
 
 		// check if we already added this character
-		for (int j = 0; j < no_doubles.size(); j++) {
+		for (int j = 0; j < static_cast<int>(no_doubles.size()); j++) {
 			if (no_doubles[j] == c) {
 				found = true;
 				break;
@@ -50,7 +50,7 @@ string duplicateOrder(const string& no_double_word) {
 			no_doubles.push_back(c);
 		}
 	}
-	return no_doubles; // returns the word without duplicate letters. BALLON -> BALON
+	return no_doubles; // returns the word without duplicate letters. BALLON to BALON
 }
 
 string buildCipherAlphabet(const string& keyword) {
@@ -66,7 +66,7 @@ string buildCipherAlphabet(const string& keyword) {
 		bool found = false;
 
 		// check if ch is already in uniqueKey
-		for (int j = 0; j < uniqueKey.size(); j++) {
+		for (int j = 0; j < static_cast<int>(uniqueKey.size()); j++) {  // <-- add static_cast<int>
 			if (uniqueKey[j] == ch) {
 				found = true;
 				break;
@@ -114,7 +114,7 @@ void encryptFile(const string& inputPath, const string& outputPath, const string
 				outputFile.put(newChar);                             // write mapped
 			}
 			else {
-				outputFile.put(letter);                              // fallback (shouldn’t happen)
+				outputFile.put(letter);                              // fallback (shouldnt happen)
 			}
 		}
 		else {
@@ -171,25 +171,54 @@ void decryptFile(const string& inputPath, const string& outputPath, const string
 	}
 }
 
-int main() {
-	string keyword;
-	cout << "Enter keyword: ";
-	if (!getline(cin, keyword) || keyword.empty()) {
-		cerr << "Error: no keyword supplied.\n";
-		return 1;
+int main(int argc, char* argv[]) {
+	if (argc < 5) {                                                // Need at least 5 args: prog, -e/-d (encrpyt or decrypt), -k (keyword), input, output
+		cerr << "Usage: crypt (-e|-d) -k<KEY> <input> <output>\n"; // Print usage if not enough args
+		return 1;                                                  // Exit with error
 	}
 
-	cout << "You entered: " << keyword << endl;
-	
-	string cipher = buildCipherAlphabet(keyword);
+	bool doEncrypt = (string(argv[1]) == "-e");                    // Check if first flag is -e
+	bool doDecrypt = (string(argv[1]) == "-d");                    // Check if first flag is -d
 
-	cout << "Cipher keyword: " << cipher << endl; 
+	if (!doEncrypt && !doDecrypt) {                                // If neither encrypt nor decrypt chosen
+		cerr << "Error: must specify -e or -d\n";                  // Show error
+		return 1;                                                  // Exit
+	}
 
-	encryptFile("plain.txt", "encrypted.txt", cipher);               // run encrypt
-	cout << "Encryption complete. See encrypted.txt\n";
+	string key;                                                    // To hold the cipher keyword
+	string kArg = argv[2];                                         // The second argument should be -k... 
+	if (kArg.rfind("-k", 0) == 0) {                                // Does it start with "-k"?
+		if (kArg.size() > 2) {                                     // Case: -kFEATHER (keyword attached)
+			key = kArg.substr(2);                                  // Extract everything after -k
+		}
+		else if (argc > 3) {                                     // Case: -k FEATHER (keyword separate)
+			key = argv[3];                                         // Grab the next argument as keyword
+			for (int i = 3; i < argc - 1; i++) argv[i] = argv[i + 1]; // Shift arguments left so input/output stay at end
+			argc--;                                                // Reduce count since we consumed one arg
+		}
+	}
 
-	decryptFile("encrypted.txt", "decrypted.txt", cipher); //runs decrypt, puts .txt in folder
-	cout << "Decryption complete. See decrypted.txt\n";
+	if (key.empty()) {                                             // If no keyword was found
+		cerr << "Error: missing keyword (-k)\n";                   // Show error
+		return 1;                                                  // Exit
+	}
 
-	return 0;
+	if (argc < 5) {                                                // After adjusting args, still need input/output
+		cerr << "Error: missing input/output file\n";              // Show error
+		return 1;                                                  // Exit
+	}
+
+	string inPath = argv[3];                                      // Input file name
+	string outPath = argv[4];                                      // Output file name
+	string cipher = buildCipherAlphabet(key);                     // Build cipher alphabet using keyword
+
+	if (doEncrypt) {                                               // If encrypt mode
+		encryptFile(inPath, outPath, cipher);                      // Encrypt input to output
+		cout << "Encrypted " << inPath << " -> " << outPath << "\n"; // Confirm to user
+	}
+	else {                                                       // Else decrypt mode
+		decryptFile(inPath, outPath, cipher);                      // Decrypt input to output
+		cout << "Decrypted " << inPath << " -> " << outPath << "\n"; // Confirm to user
+	}
+	return 0;                                                      // Program success
 }
